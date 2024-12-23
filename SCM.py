@@ -110,11 +110,11 @@ if uploaded_file:
 
         # --- RECEIPTS vs. INVOICE COMPARISON ---
         st.write("### Receipts vs. Invoice Comparison")
-        receipts_vs_invoice = filtered_df.groupby("PO Number").agg(
-            total_received=("Received Quantity", "sum"),
-            total_invoiced=("Invoice Amount", "sum")
+        receipts_vs_quantity = filtered_df.groupby("PO Number").agg(
+            total_received=("Quantity", "sum"),
+            total_invoiced=("Received Quantity", "sum")
         )
-        receipts_vs_invoice["Difference"] = receipts_vs_invoice["total_invoiced"] - receipts_vs_invoice["total_received"]
+        receipts_vs_invoice["Difference"] = receipts_vs_invoice["total_quantity"] - receipts_vs_invoice["total_received"]
 
         st.dataframe(receipts_vs_invoice)
 
