@@ -10,7 +10,7 @@ st.set_page_config(page_title="Supply Chain Procurement Dashboard", layout="wide
 st.title("🌍 Supply Chain Procurement Dashboard")
 
 # Load the Excel file
-uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
+uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx", "xlsm", "xls", "csv"])
 
 # Initialize session state if not already done
 if 'df' not in st.session_state:
@@ -24,7 +24,7 @@ if uploaded_file:
     df.columns = df.columns.str.strip()
 
     # Check if necessary columns exist
-    required_columns = ['Sales Order No', 'Customer Name', 'PO Number', 'PO Total Amount (EGP)', 'Invoice Amount', 'Delivery Date', 'PO Date', 'Estimated Delivery Date']
+    required_columns = ['Sales Order No', 'Customer Name', 'PO Number', 'PO Total Amount (EGP)', 'Invoice Amount', 'Delivery Date', 'PO Date', 'Estimated Delivery Date','Quantity', 'Received Quantity']
     missing_columns = [col for col in required_columns if col not in df.columns]
 
     if missing_columns:
@@ -109,19 +109,29 @@ if uploaded_file:
         st.bar_chart(top_customers)
 
         # --- RECEIPTS vs. INVOICE COMPARISON ---
-        st.write("### Receipts vs. Invoice Comparison")
-        receipts_vs_quantity = filtered_df.groupby("PO Number").agg(
-            total_received=("Quantity", "sum"),
-            total_invoiced=("Received Quantity", "sum")
-        )
-        receipts_vs_invoice["Difference"] = receipts_vs_invoice["total_quantity"] - receipts_vs_invoice["total_received"]
+st.write("### Receipts vs. Invoice Comparison")
 
-        st.dataframe(receipts_vs_invoice)
+# Check required columns exist
+if all(col in filtered_df.columns for col in ["PO Number", "Quantity", "Received Quantity"]):
+    # Group data by PO Number
+    receipts_vs_quantity = filtered_df.groupby("PO Number").agg(
+        total_quantity=("Quantity", "sum"),
+        total_received=("Received Quantity", "sum")
+    )
 
-        # Highlight mismatches
-        mismatches = receipts_vs_invoice[receipts_vs_invoice["Difference"] != 0]
-        st.write(f"Total Mismatches (Invoice vs Received): {len(mismatches)}")
-        st.dataframe(mismatches)
+    # Adding a new column for the difference
+    receipts_vs_quantity["Difference"] = receipts_vs_quantity["total_quantity"] - receipts_vs_quantity["total_received"]
+
+    # Display the resulting DataFrame
+    st.dataframe(receipts_vs_quantity)
+
+    # Highlight mismatches
+    mismatches = receipts_vs_quantity[receipts_vs_quantity["Difference"] != 0]
+    st.write(f"Total Mismatches (Quantity vs Received): {len(mismatches)}")
+    st.dataframe(mismatches)
+else:
+    st.error("The required columns for Receipts vs. Invoice Comparison are missing.")
+
 
         # --- DYNAMIC SUMMARY TABLES ---
         st.write("### Summary Tables")
