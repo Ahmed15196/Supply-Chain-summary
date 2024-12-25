@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import sys
 
-
 # Set the page config for a modern UI
 st.set_page_config(page_title="Supply Chain Procurement Dashboard", layout="wide")
 
@@ -24,7 +23,12 @@ if uploaded_file:
     df.columns = df.columns.str.strip()
 
     # Check if necessary columns exist
-    required_columns = ['Sales Order No', 'Customer Name', 'PO Number', 'PO Total Amount (EGP)', 'Invoice Amount', 'Delivery Date', 'PO Date', 'Estimated Delivery Date','Quantity', 'Received Quantity']
+    required_columns = [
+        'Sales Order No', 'Customer Name', 'PO Number', 
+        'PO Total Amount (EGP)', 'Invoice Amount', 
+        'Delivery Date', 'PO Date', 'Estimated Delivery Date', 
+        'Quantity', 'Received Quantity'
+    ]
     missing_columns = [col for col in required_columns if col not in df.columns]
 
     if missing_columns:
@@ -53,7 +57,6 @@ if uploaded_file:
 
         # Apply filters
         filtered_df = df.copy()
-
         if sales_order_no:
             filtered_df = filtered_df[filtered_df["Sales Order No"].isin(sales_order_no)]
         if customer_name:
@@ -73,7 +76,6 @@ if uploaded_file:
         delayed_shipments = filtered_df[
             (filtered_df['Estimated Delivery Date'] - filtered_df['Delivery Date']).dt.days > delay_threshold
         ]
-        
         st.write(f"Total Delayed Shipments (More than {delay_threshold} days): {len(delayed_shipments)}")
         st.dataframe(delayed_shipments)
 
@@ -83,8 +85,6 @@ if uploaded_file:
 
         # --- SUPPLIER PERFORMANCE ---
         st.write("### Supplier Performance")
-
-        # Calculate on-time delivery rate and other supplier KPIs
         supplier_performance = filtered_df.groupby("Supplier").agg(
             total_orders=("PO Number", "nunique"),
             total_procurement=("PO Total Amount (EGP)", "sum"),
@@ -93,10 +93,7 @@ if uploaded_file:
         )
 
         supplier_performance["On-Time Delivery Rate (%)"] = (supplier_performance["on_time_deliveries"] / supplier_performance["total_orders"]) * 100
-
         st.dataframe(supplier_performance)
-
-        # Bar chart: On-time delivery rate by supplier
         st.bar_chart(supplier_performance["On-Time Delivery Rate (%)"])
 
         # --- TOP SUPPLIERS & CUSTOMERS ---
@@ -109,34 +106,23 @@ if uploaded_file:
         st.bar_chart(top_customers)
 
         # --- RECEIPTS vs. INVOICE COMPARISON ---
-st.write("### Receipts vs. Invoice Comparison")
+        st.write("### Receipts vs. Invoice Comparison")
+        if all(col in filtered_df.columns for col in ["PO Number", "Quantity", "Received Quantity"]):
+            receipts_vs_quantity = filtered_df.groupby("PO Number").agg(
+                total_quantity=("Quantity", "sum"),
+                total_received=("Received Quantity", "sum")
+            )
+            receipts_vs_quantity["Difference"] = receipts_vs_quantity["total_quantity"] - receipts_vs_quantity["total_received"]
+            st.dataframe(receipts_vs_quantity)
 
-# Check required columns exist
-if all(col in filtered_df.columns for col in ["PO Number", "Quantity", "Received Quantity"]):
-    # Group data by PO Number
-    receipts_vs_quantity = filtered_df.groupby("PO Number").agg(
-        total_quantity=("Quantity", "sum"),
-        total_received=("Received Quantity", "sum")
-    )
-
-    # Adding a new column for the difference
-    receipts_vs_quantity["Difference"] = receipts_vs_quantity["total_quantity"] - receipts_vs_quantity["total_received"]
-
-    # Display the resulting DataFrame
-    st.dataframe(receipts_vs_quantity)
-
-    # Highlight mismatches
-    mismatches = receipts_vs_quantity[receipts_vs_quantity["Difference"] != 0]
-    st.write(f"Total Mismatches (Quantity vs Received): {len(mismatches)}")
-    st.dataframe(mismatches)
-else:
-    st.error("The required columns for Receipts vs. Invoice Comparison are missing.")
-
+            mismatches = receipts_vs_quantity[receipts_vs_quantity["Difference"] != 0]
+            st.write(f"Total Mismatches (Quantity vs Received): {len(mismatches)}")
+            st.dataframe(mismatches)
+        else:
+            st.error("The required columns for Receipts vs. Invoice Comparison are missing.")
 
         # --- DYNAMIC SUMMARY TABLES ---
         st.write("### Summary Tables")
-
-        # Show summarized data of key metrics
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Total Sales Orders", len(filtered_df["Sales Order No"].unique()))
@@ -154,7 +140,6 @@ else:
             "filtered_data.csv",
             "text/csv"
         )
-
         st.download_button(
             "Download Summary Data as CSV",
             supplier_performance.to_csv(index=True),
